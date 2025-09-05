@@ -127,5 +127,5 @@ public:
     Token get_next_token();
 };
 
-#endif // LEXER_H
+#endif // GLUE_LEXER_H
 

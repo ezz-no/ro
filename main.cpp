@@ -45,9 +45,6 @@ int main(int argc, char* argv[]) {
         std::cout << std::endl;
     }
 
-    // 创建LLVM执行器
-    Executor executor;
-
     // 编译并运行
     executor.execute(program);
 

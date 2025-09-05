@@ -27,12 +27,14 @@ public:
         ADD, SUB, MUL, DIV,
         EQ, NEQ, LT, GT, LE, GE,
         AND, OR, NOT,
+        CONSTANT_INT, CONSTANT_FLOAT, CONSTANT_STRING,
+        IDENTIFIER,
+        ARRAY_LITERAL, ARRAY_ACCESS,
+        OBJECT_LITERAL,   // 对象字面量 {"xx": xxx}
+        PARAMETERS,
         IN,
         ASSIGN,
-        CONSTANT_INT, CONSTANT_FLOAT, CONSTANT_STRING,
-        DOT, IDENTIFIER,
-        ARRAY_LITERAL, ARRAY_ACCESS, // 数组字面量，如[1, 2, 3]; 数组访问，如arr[0]
-        OBJECT_LITERAL,   // 对象字面量 {"xx": xxx}
+        DOT,
         CURL,
     };
 
@@ -102,7 +104,7 @@ public:
 // 程序节点
 class ProgramNode : public ASTNode {
 public:
-    std::vector<std::unique_ptr<FuncNode>> functions;
+    std::unordered_map<std::string, std::unique_ptr<FuncNode>> functions;
     std::vector<std::unique_ptr<APINode>> apis;
 
     [[nodiscard]] std::string to_string(int indent = 0) const override;
@@ -162,5 +164,5 @@ public:
     std::unique_ptr<ProgramNode> parse_program();
 };
 
-#endif // PARSER_H
+#endif // GLUE_PARSER_H
 

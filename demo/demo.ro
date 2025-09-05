@@ -1,3 +1,7 @@
+f(a, b) {
+   return "hello world!";
+}
+
 listen 8020
 
 api "/hello" {
@@ -15,6 +19,7 @@ api "/hello2" {
 api "/hello3" {
     data <- "http://localhost:8020/hello";
     return {
-        "msg": data.msg.arr.1
+        "msg": data.msg.arr.1,
+        "fval": f(1, 1)
     };
 }

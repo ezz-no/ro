@@ -1,7 +1,6 @@
 #ifndef GLUE_EXECUTOR_H
 #define GLUE_EXECUTOR_H
 
-#include <sstream>
 #include <unordered_map>
 #include <variant>
 #include <stdexcept>
@@ -166,9 +165,6 @@ private:
     // 变量存储
     std::unordered_map<std::string, Value> variables;
 
-    // 函数存储
-    std::unordered_map<std::string, const FuncNode*> functions;
-
     // 辅助函数：获取值的字符串表示
     [[nodiscard]] std::string value_to_string(const Value& val) const;
 
@@ -190,6 +186,12 @@ public:
 
     Value execute_api(const APINode*);
 
+    [[nodiscard]] Executor copy() const {
+        Executor exe;
+        exe.variables = this->variables;
+        return exe;
+    }
+
     // 打印当前变量状态
     void print_variables() const;
 };
@@ -199,5 +201,7 @@ class ExecutionError : public std::runtime_error {
 public:
     explicit ExecutionError(const std::string& message) : std::runtime_error(message) {}
 };
+
+inline Executor executor;
 
 #endif // EXECUTOR_H

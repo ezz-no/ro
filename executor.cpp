@@ -165,6 +165,19 @@ static Value get_object_field(const Value& object_val, std::string index) {
     return obj[index];
 }
 
+static FuncNode* as_function(const Value& object_val) {
+    if (!is_type<ComplexValue>(object_val)) {
+        throw ExecutionError("not a function");
+    }
+
+    auto val_ptr = get_value<ComplexValue>(object_val);
+    if (val_ptr.first != 3) {
+        throw ExecutionError("not a function");
+    }
+
+    return static_cast<FuncNode*>(val_ptr.second);
+}
+
 std::string Executor::value_to_string(const Value& val) const {
     if (std::holds_alternative<int>(val)) {
         return std::to_string(std::get<int>(val));
@@ -205,13 +218,21 @@ Value Executor::evaluate_expression(const ExprNode* expr) {
 
             auto node = expr->right ? expr->right.get() : nullptr;
             while (node != nullptr) {
-                if (node->token_type == CONSTANT_INTEGER) {
+                if (node->op_type == ExprNode::OpType::PARAMETERS) {
+                    auto params = std::vector<Value>();
+                    for (const auto& elem_node : expr->array_elements) {
+                        params.push_back(evaluate_expression(elem_node.get()));
+                    }
+                    val = execute_function(as_function(val), params);
+                }
+                else if (node->token_type == CONSTANT_INTEGER) {
                     int index = std::stoi(node->value);
                     if (index < 0) {
                         return NULL_VALUE;
                     }
                     val = get_array_element(val, static_cast<size_t>(index));
-                } else {
+                }
+                else {
                     val = get_object_field(val, node->value);
                 }
                 node = node->right.get();
@@ -454,29 +475,6 @@ Value Executor::evaluate_expression(const ExprNode* expr) {
             return get_array_element(array_val, static_cast<size_t>(index));
         }
 
-        case ExprNode::OpType::DOT: {
-            if (!expr->left || !expr->right) {
-                throw ExecutionError("Invalid array access expression");
-            }
-
-            Value obj_val = evaluate_expression(expr->left.get());
-            Value index_val = evaluate_address_index(expr->right.get());
-            if (is_type<int>(index_val)) {
-                int index = get_value<int>(index_val);
-                if (index < 0) {
-                    return NULL_VALUE;
-                }
-                return get_array_element(obj_val, static_cast<size_t>(index));
-            }
-
-            if (is_type<std::string>(index_val)) {
-                std::string index = get_value<std::string>(index_val);
-                return get_object_field(obj_val, index);
-            }
-
-            throw ExecutionError("Index value must be int or string");
-        }
-
         case ExprNode::OpType::OBJECT_LITERAL: {
             auto* val = new std::unordered_map<std::string, Value>();
             for (const auto& [key, value] : expr->object_members) {
@@ -676,14 +674,7 @@ void Executor::execute_statement(const StmtNode* stmt) {
 
 Value Executor::execute_function(const FuncNode* func, const std::vector<Value>& args) {
     if (!func) {
-        throw ExecutionError("Null function");
-    }
-
-    // 检查参数数量
-    if (args.size() != func->parameters.size()) {
-        throw ExecutionError("Function " + func->name + " expects " +
-                            std::to_string(func->parameters.size()) + " arguments, got " +
-                            std::to_string(args.size()));
+        throw ExecutionError("null function");
     }
 
     // 保存当前变量状态，用于函数执行完毕后恢复
@@ -691,7 +682,7 @@ Value Executor::execute_function(const FuncNode* func, const std::vector<Value>&
 
     try {
         // 设置函数参数
-        for (size_t i = 0; i < func->parameters.size(); ++i) {
+        for (size_t i = 0; i < func->parameters.size() && i < args.size(); ++i) {
             variables[func->parameters[i]] = args[i];
         }
 
@@ -700,8 +691,7 @@ Value Executor::execute_function(const FuncNode* func, const std::vector<Value>&
             execute_statement(func->body.get());
         }
 
-        // 简单实现：返回最后一个表达式的值（实际中应该处理return语句）
-        return Value();
+        return result_;
     } catch (...) {
         // 恢复变量状态并重新抛出异常
         variables = prev_variables;
@@ -711,14 +701,22 @@ Value Executor::execute_function(const FuncNode* func, const std::vector<Value>&
 
 Value Executor::execute_api(const APINode* api) {
     if (!api) {
-        throw ExecutionError("Null api");
+        throw ExecutionError("null api");
     }
 
-    // 执行函数体
-    execute_statement(api->body.get());
+    // 保存当前变量状态，用于函数执行完毕后恢复
+    auto prev_variables = variables;
 
-    // 简单实现：返回最后一个表达式的值（实际中应该处理return语句）
-    return result_;
+    try {
+        // 执行函数体
+        execute_statement(api->body.get());
+
+        return result_;
+    } catch (...) {
+        // 恢复变量状态并重新抛出异常
+        variables = prev_variables;
+        throw;
+    }
 }
 
 namespace net = boost::asio;            // from <boost/asio.hpp>
@@ -726,18 +724,13 @@ using tcp = boost::asio::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
 
 void Executor::execute(const std::unique_ptr<ProgramNode>& program) {
     if (!program) {
-        throw ExecutionError("Null program");
+        throw ExecutionError("null program");
     }
 
-    // 查找并执行main函数
-    /*
-    auto main_it = functions.find("main");
-    if (main_it == functions.end()) {
-        throw ExecutionError("No main function found");
+    for (auto& [name, func] : program->functions) {
+        std::unique_ptr<FuncNode> new_owner = std::move(func);
+        variables[name] = std::make_pair(3, new_owner.release());
     }
-
-    std::cout << "Executing main function..." << std::endl;
-    execute_function(main_it->second, {});*/
 
     // 要监听的端口列表
     std::unordered_map<int, std::unordered_map<std::string, std::unique_ptr<APINode>>> apisByPort;

@@ -68,8 +68,7 @@ private:
             auto it = self->apis_.find(self->req_.target());
             if (it != self->apis_.end())
             {
-                Executor executor;
-                self->res_.body() = value_to_string(executor.execute_api(it->second.get()));
+                self->res_.body() = value_to_string(executor.copy().execute_api(it->second.get()));
             }
             else
             {

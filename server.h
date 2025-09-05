@@ -106,4 +106,4 @@ private:
     static void fail(beast::error_code ec, char const* what);
 };
 
-#endif //SERVER_H
+#endif //GLUE_SERVER_H

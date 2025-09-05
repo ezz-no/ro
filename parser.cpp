@@ -2,10 +2,11 @@
 // Created by ezzno on 2025/7/29.
 //
 
-#include "parser.h"
 #include <iostream>
-#include <iomanip>
 #include <execinfo.h>  // 非标准库，但但在Linux/macOS上普遍存在
+
+#include "namespace.h"
+#include "parser.h"
 
 // Parser类实现
 void Parser::consume() {
@@ -221,12 +222,31 @@ std::unique_ptr<ExprNode> Parser::parse_address_expression() {
         case SEPARATOR_DOT: {
             consume();
 
-           if (current_token.type != IDENTIFIER && current_token.type != CONSTANT_INTEGER) {
+            if (current_token.type != IDENTIFIER && current_token.type != CONSTANT_INTEGER) {
                 error("Expected int or string");
             }
             auto node = std::make_unique<ExprNode>(ExprNode::OpType::DOT, current_token.value, current_token.type);
             consume();
 
+            return node;
+        }
+        case SEPARATOR_LPAREN: {  // (
+            consume();
+
+            auto node = std::make_unique<ExprNode>(ExprNode::OpType::PARAMETERS);
+            while (current_token.type != SEPARATOR_RPAREN) {
+                auto elem = parse_expression();
+                node->array_elements.push_back(std::move(elem));
+
+                if (current_token.type == SEPARATOR_COMMA) {
+                    consume();  // consume ','
+                }
+                else if (current_token.type != SEPARATOR_RPAREN) {
+                    error("Expected comma or closing bracket in array");
+                }
+            }
+
+            consume();  // consume ')'
             return node;
         }
         default: {
@@ -559,7 +579,6 @@ std::unique_ptr<StmtNode> Parser::parse_declaration() {
     return decl_stmt;
 }
 
-// 函数解析
 Parameters Parser::parse_parameters() {
     Parameters params;
 
@@ -568,15 +587,7 @@ Parameters Parser::parse_parameters() {
     }
 
     while (true) {
-        // 参数类型
-        /*if (current_token.type != KEYWORD_INT && current_token.type != KEYWORD_FLOAT
-            && current_token.type != KEYWORD_VOID) {
-            error("Expected type in parameter list");
-        }
-        std::string type = current_token.value;
-        consume();*/
-
-        // 参数名
+        // param
         if (current_token.type != IDENTIFIER) {
             error("Expected identifier in parameter list");
         }
@@ -595,42 +606,29 @@ Parameters Parser::parse_parameters() {
 }
 
 std::unique_ptr<FuncNode> Parser::parse_function() {
-    // 函数返回类型
-    if (current_token.type != KEYWORD_INT && current_token.type != KEYWORD_FLOAT
-        && current_token.type != KEYWORD_VOID) {
-        error("Expected return type for function");
-    }
-    std::string return_type = current_token.value;
-    consume();
-
-    // 函数名
+    // function name
     if (current_token.type != IDENTIFIER) {
         error("Expected function name");
     }
     std::string func_name = current_token.value;
     consume();
 
-    // 参数列表
+    // function parameters
     expect(SEPARATOR_LPAREN, "Expected '(' after function name");
     auto params = parse_parameters();
     expect(SEPARATOR_RPAREN, "Expected ')' after parameter list");
 
-    // 函数体
-    auto func = std::make_unique<FuncNode>(return_type, func_name);
+    // function body
+    auto func = std::make_unique<FuncNode>("", func_name);
     func->parameters = std::move(params);
     func->body = parse_block();
 
     return func;
 }
 
-// 解析整个程序
 std::unique_ptr<ProgramNode> Parser::parse_program() {
     auto program = std::make_unique<ProgramNode>();
     int port = 80;
-
-    //while (current_token.type != END_OF_FILE) {
-    //    program->functions.push_back(parse_function());
-    //}
 
     while (current_token.type != END_OF_FILE) {
         switch (current_token.type) {
@@ -660,6 +658,11 @@ std::unique_ptr<ProgramNode> Parser::parse_program() {
                 }
                 port = std::stoi(current_token.value);
                 consume();
+                break;
+            }
+            case IDENTIFIER: {
+                auto func = parse_function();
+                program->functions[func->name] = std::move(func);
                 break;
             }
             default:

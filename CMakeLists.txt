@@ -40,7 +40,8 @@ add_executable(ro-glue
         parser.cpp
         executor.cpp
         to_string.cpp
-        server.cpp  # 包含Boost.Beast服务器实现的文件
+        server.cpp
+        namespace.cpp
 )
 
 target_include_directories(ro-glue PRIVATE

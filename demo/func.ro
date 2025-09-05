@@ -1,0 +1,9 @@
+listen 8020
+
+f(a, b) {
+   return "hello world!";
+}
+
+api "/hello" {
+    return {"xx":f(1, 1)};
+}
