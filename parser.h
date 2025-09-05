@@ -36,6 +36,7 @@ public:
         CURL,
     };
 
+    TokenType token_type;
     OpType op_type;
     std::string value;  // 用于存储常量值或标识符名称
     std::unique_ptr<ExprNode> left;
@@ -45,8 +46,8 @@ public:
     std::vector<std::unique_ptr<ExprNode>> array_elements;  // 用于存储数组元素
     std::unordered_map<std::string, std::unique_ptr<ExprNode>> object_members;
 
-    explicit ExprNode(OpType type, std::string val = "")
-        : op_type(type), value(std::move(val)), left(nullptr), right(nullptr) {}
+    explicit ExprNode(OpType type, std::string val = "", TokenType ttype = UNKNOWN)
+        : op_type(type), value(std::move(val)), left(nullptr), right(nullptr), token_type(ttype) {}
 
     [[nodiscard]] std::string to_string(int indent = 0) const override;
 };

@@ -15,6 +15,6 @@ api "/hello2" {
 api "/hello3" {
     data <- "http://localhost:8020/hello";
     return {
-        "msg": data.msg
+        "msg": data.msg.arr.1
     };
 }

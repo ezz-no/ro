@@ -211,22 +211,21 @@ std::unique_ptr<ExprNode> Parser::parse_address_expression() {
         case SEPARATOR_LBRACKET: { // 数组访问
             consume();  // 消耗'['
 
-            // 创建数组访问节点
-            auto access_node = std::make_unique<ExprNode>(ExprNode::OpType::ARRAY_ACCESS);
-            // access_node->left = std::move(ident);  // 数组名
-
-            // 解析索引表达式
-            access_node->right = parse_expression();
+            auto node = std::make_unique<ExprNode>(ExprNode::OpType::ARRAY_ACCESS);
+            node->left = parse_expression();
 
             expect(SEPARATOR_RBRACKET, "Expected closing bracket for array access"); // 消耗']'
 
-            return access_node;
+            return node;
         }
         case SEPARATOR_DOT: {
             consume();
 
-            auto node = std::make_unique<ExprNode>(ExprNode::OpType::DOT);
-            node->right = parse_expression();
+           if (current_token.type != IDENTIFIER && current_token.type != CONSTANT_INTEGER) {
+                error("Expected int or string");
+            }
+            auto node = std::make_unique<ExprNode>(ExprNode::OpType::DOT, current_token.value, current_token.type);
+            consume();
 
             return node;
         }
@@ -348,13 +347,14 @@ std::unique_ptr<ExprNode> Parser::parse_primary_expression() {
             auto ident = std::make_unique<ExprNode>(ExprNode::OpType::IDENTIFIER, current_token.value);
             consume();
 
+            auto cur = ident.get();
             while (true) {
                 auto addr_node = parse_address_expression();
                 if (addr_node == nullptr) {
                     break;
                 }
-                addr_node->left = std::move(ident);
-                ident = std::move(addr_node);
+                cur->right = std::move(addr_node);
+                cur = cur->right.get();
             }
 
             return ident;

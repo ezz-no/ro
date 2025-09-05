@@ -201,7 +201,22 @@ Value Executor::evaluate_expression(const ExprNode* expr) {
                 //return 0;
                 throw ExecutionError("Undefined variable: " + expr->value);
             }
-            return it->second;
+            auto val = it->second;
+
+            auto node = expr->right ? expr->right.get() : nullptr;
+            while (node != nullptr) {
+                if (node->token_type == CONSTANT_INTEGER) {
+                    int index = std::stoi(node->value);
+                    if (index < 0) {
+                        return NULL_VALUE;
+                    }
+                    val = get_array_element(val, static_cast<size_t>(index));
+                } else {
+                    val = get_object_field(val, node->value);
+                }
+                node = node->right.get();
+            }
+            return val;
         }
 
         case ExprNode::OpType::ADD: {
