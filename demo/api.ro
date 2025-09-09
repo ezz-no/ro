@@ -1,0 +1,5 @@
+listen 9100
+
+api "/hello" {
+    return [1, "world"];
+}

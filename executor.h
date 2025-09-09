@@ -157,6 +157,12 @@ inline ValueMap json_to_value_map(const nlohmann::json& j) {
 // 执行器类，用于解释执行AST
 class Executor {
 private:
+    std::ostream& os;
+
+    std::ostringstream oss;
+
+    bool eval_ = false;
+
     bool return_ = false;
 
     // 结果存储
@@ -179,7 +185,9 @@ private:
     // 执行函数
     Value execute_function(const FuncNode* func, const std::vector<Value>& args);
 public:
-    Executor() = default;
+    explicit Executor() : os(std::cout) {};
+
+    explicit Executor(bool eval /* true */) : eval_(true), os(oss) {};
 
     // 执行整个程序
     void execute(const std::unique_ptr<ProgramNode>& program);
@@ -194,6 +202,10 @@ public:
 
     // 打印当前变量状态
     void print_variables() const;
+
+    std::string result() const {
+        return oss.str();
+    };
 };
 
 // 执行时异常

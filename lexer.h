@@ -8,6 +8,7 @@
 #include <string>
 #include <fstream>
 #include <unordered_map>
+#include <memory>
 
 // 令牌类型枚举
 enum TokenType {
@@ -85,15 +86,104 @@ struct Token {
         : type(t), value(v), line(l), column(c) {}
 };
 
+class InputSource {
+public:
+    virtual ~InputSource() = default;
+    virtual char next_char() = 0; // 读取下一个字符
+    virtual bool is_eof() const = 0; // 检查是否到达末尾
+    virtual int get_line() const = 0; // 获取当前行号
+    virtual int get_column() const = 0; // 获取当前列号
+};
+
+class FileInputSource : public InputSource {
+private:
+    std::ifstream file;
+    int current_line;
+    int current_column;
+    char last_char;
+
+public:
+    FileInputSource(const std::string& filename)
+        : file(filename), current_line(1), current_column(0), last_char(0) {
+        if (!file.is_open()) {
+            throw std::runtime_error("Failed to open file: " + filename);
+        }
+    }
+
+    char next_char() override {
+        if (file.eof()) {
+            return EOF;
+        }
+        last_char = file.get();
+        if (last_char == '\n') {
+            current_line++;
+            current_column = 0;
+        } else {
+            current_column++;
+        }
+        return last_char;
+    }
+
+    bool is_eof() const override {
+        return file.eof();
+    }
+
+    int get_line() const override {
+        return current_line;
+    }
+
+    int get_column() const override {
+        return current_column;
+    }
+};
+
+class StringInputSource : public InputSource {
+private:
+    std::string input;
+    size_t pos;
+    int current_line;
+    int current_column;
+
+public:
+    StringInputSource(const std::string& str)
+        : input(str), pos(0), current_line(1), current_column(0) {}
+
+    char next_char() override {
+        if (pos >= input.size()) {
+            return EOF;
+        }
+        char c = input[pos++];
+        if (c == '\n') {
+            current_line++;
+            current_column = 0;
+        } else {
+            current_column++;
+        }
+        return c;
+    }
+
+    bool is_eof() const override {
+        return pos >= input.size();
+    }
+
+    int get_line() const override {
+        return current_line;
+    }
+
+    int get_column() const override {
+        return current_column;
+    }
+};
+
 // 词法分析器类
 class Lexer {
 private:
-    std::ifstream input_file;
-    std::string current_filename;
+    std::unique_ptr<InputSource> input_source;
     char current_char;
-    int current_line;
-    int current_column;
     std::unordered_map<std::string, TokenType> keyword_map;
+
+    // 初始化
+    void init();
 
     // 读取下一个字符
     void next_char();
@@ -115,13 +205,12 @@ private:
 
 public:
     // 构造函数
-    Lexer(const std::string& filename);
+    explicit Lexer(const std::string& filename);
+
+    Lexer(const std::string& input, bool /* is_string */);
 
     // 析构函数
     ~Lexer();
-
-    // 检查文件是否成功打开
-    bool is_open() const;
 
     // 获取下一个令牌
     Token get_next_token();

@@ -12,6 +12,10 @@ api "/hello" {
     };
 }
 
+init() {
+    print "hello world!";
+}
+
 api "/hello2" {
     return [1, "world"];
 }

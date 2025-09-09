@@ -6,9 +6,10 @@
 #include <iostream>
 #include <memory>
 #include <string>
-#include <vector>
+
 #include "server.h"
 #include "executor.h"
+#include "main.h"
 
 namespace beast = boost::beast;         // from <boost/beast.hpp>
 namespace http = beast::http;           // from <boost/beast/http.hpp>
@@ -54,8 +55,7 @@ private:
     void handle_request()
     {
         // 输出连接信息
-        std::cout << "Received request on port " << port_
-                  << " for " << req_.target() << std::endl;
+        // std::cout << "Received request on port " << port_ << " for " << req_.target() << std::endl;
 
         res_ = http::response<http::string_body>{http::status::ok, req_.version()};
         res_.set(http::field::server, BOOST_BEAST_VERSION_STRING);
@@ -65,16 +65,22 @@ private:
 
         // 使用线程池执行（替代std::thread，减少线程创建开销）
         net::post(thread_pool_, [self]() {
-            auto it = self->apis_.find(self->req_.target());
-            if (it != self->apis_.end())
-            {
-                self->res_.body() = value_to_string(executor.copy().execute_api(it->second.get()));
+            if (self->apis_.empty()) {
+                self->res_.body() = eval(self->req_.body());
+            } else {
+                auto it = self->apis_.find(self->req_.target());
+                if (it != self->apis_.end())
+                {
+                    self->res_.body() = value_to_string(executor.copy().execute_api(it->second.get()));
+                }
+                else
+                {
+                    self->res_.result(http::status::not_found);
+                    self->res_.body() = "Not Found (on port " + std::to_string(self->port_) + ")";
+                }
             }
-            else
-            {
-                self->res_.result(http::status::not_found);
-                self->res_.body() = "Not Found (on port " + std::to_string(self->port_) + ")";
-            }
+
+
 
             self->res_.prepare_payload();
             self->res_.keep_alive(self->req_.keep_alive());

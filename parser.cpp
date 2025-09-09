@@ -8,6 +8,8 @@
 #include "namespace.h"
 #include "parser.h"
 
+#include <sstream>
+
 // Parser类实现
 void Parser::consume() {
     current_token = lexer.get_next_token();
@@ -38,17 +40,17 @@ static void print_backtrace() {
     free(frame_symbols);  // 释放动态分配的内存
 }
 
-void Parser::error(const std::string& message) {
-    std::cerr << "Parse error at line " << current_token.line
-              << ", column " << current_token.column << ": "
-              << message;
-    if (current_token.type != END_OF_FILE) {
-        std::cerr << " (Unexpected token: " << current_token.value << ")";
-    }
-    std::cerr << std::endl;
+void Parser::error(const std::string& message) const {
+    std::ostringstream oss;
+    oss << "Parse error at line " << current_token.line
+        << ", column " << current_token.column << ": "
+        << message;
 
-    print_backtrace();
-    exit(1);
+    if (current_token.type != END_OF_FILE) {
+        oss << " (Unexpected token: " << current_token.value << ")";
+    }
+
+    throw ParseError(oss.str());
 }
 
 void Parser::expect(TokenType type, const std::string& message) {

@@ -6,11 +6,7 @@
 #include <cctype>
 #include <iostream>
 
-// 初始化关键字映射
-Lexer::Lexer(const std::string& filename)
-    : current_filename(filename), current_line(1), current_column(0) {
-    input_file.open(filename);
-
+void Lexer::init() {
     // 填充关键字映射表
     keyword_map["if"] = KEYWORD_IF;
     keyword_map["else"] = KEYWORD_ELSE;
@@ -26,36 +22,27 @@ Lexer::Lexer(const std::string& filename)
     keyword_map["print"] = KEYWORD_PRINT;
     keyword_map["api"] = KEYWORD_API;
     keyword_map["listen"] = KEYWORD_LISTEN;
+}
 
-    if (input_file.is_open()) {
-        next_char(); // 读取第一个字符
-    }
+// 初始化关键字映射
+Lexer::Lexer(const std::string& filename) {
+    init();
+    input_source = std::make_unique<FileInputSource>(filename);
+    next_char();
+}
+
+Lexer::Lexer(const std::string& input, bool /* is_string */) {
+    init();
+    input_source = std::make_unique<StringInputSource>(input);
+    next_char();
 }
 
 Lexer::~Lexer() {
-    if (input_file.is_open()) {
-        input_file.close();
-    }
-}
 
-bool Lexer::is_open() const {
-    return input_file.is_open();
 }
 
 void Lexer::next_char() {
-    if (input_file.eof()) {
-        current_char = EOF;
-        return;
-    }
-
-    input_file.get(current_char);
-    current_column++;
-
-    // 处理换行
-    if (current_char == '\n') {
-        current_line++;
-        current_column = 0;
-    }
+    current_char = input_source->next_char();
 }
 
 void Lexer::skip_whitespace() {
@@ -65,8 +52,8 @@ void Lexer::skip_whitespace() {
 }
 
 Token Lexer::process_identifier() {
-    int start_line = current_line;
-    int start_column = current_column;
+    int start_line = input_source->get_line();
+    int start_column = input_source->get_column();
     std::string identifier;
 
     // 标识符由字母、数字和下划线组成，且不能以数字开头
@@ -87,8 +74,8 @@ Token Lexer::process_identifier() {
 }
 
 Token Lexer::process_number() {
-    int start_line = current_line;
-    int start_column = current_column;
+    int start_line = input_source->get_line();
+    int start_column = input_source->get_column();
     std::string number_str;
     bool is_float = false;
 
@@ -138,8 +125,8 @@ Token Lexer::process_number() {
 }
 
 Token Lexer::process_string() {
-    int start_line = current_line;
-    int start_column = current_column;
+    int start_line = input_source->get_line();
+    int start_column = input_source->get_column();
     std::string string_value;
     char quote_char = current_char; // 记录是单引号还是双引号
 
@@ -178,8 +165,8 @@ Token Lexer::process_string() {
 }
 
 Token Lexer::process_operator_or_separator() {
-    int start_line = current_line;
-    int start_column = current_column;
+    int start_line = input_source->get_line();
+    int start_column = input_source->get_column();
     char current = current_char;
 
     // 处理可能是双字符的运算符
@@ -359,7 +346,7 @@ Token Lexer::get_next_token() {
 
     // 检查是否到达文件末尾
     if (current_char == EOF) {
-        return Token(END_OF_FILE, "", current_line, current_column);
+        return Token(END_OF_FILE, "", input_source->get_line(), input_source->get_column());
     }
 
     // 处理标识符和关键字 (以字母或下划线开头)

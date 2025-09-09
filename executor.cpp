@@ -1,10 +1,12 @@
 #include <boost/beast.hpp>
 #include <boost/asio.hpp>
-#include <boost/url.hpp>  // 用于解析URL（需要Boost 1.76+）
+#include <boost/url.hpp>
 #include <iostream>
 
 #include "json.hpp"
 #include "executor.h"
+
+#include "main.h"
 #include "parser.h"
 #include "server.h"
 
@@ -625,9 +627,9 @@ void Executor::execute_statement(const StmtNode* stmt) {
             }
 
             for (auto i = 0; i < results.size(); ++i) {
-                std::cout << value_to_string(results[i]);
+                os << value_to_string(results[i]);
             }
-            std::cout << std::endl;
+            os << std::endl;
             break;
         }
 
@@ -730,6 +732,17 @@ void Executor::execute(const std::unique_ptr<ProgramNode>& program) {
     for (auto& [name, func] : program->functions) {
         std::unique_ptr<FuncNode> new_owner = std::move(func);
         variables[name] = std::make_pair(3, new_owner.release());
+    }
+
+    for (auto& [name, value] : variables) {
+        if (name == "init") {
+            execute_function(as_function(value), {});
+        }
+    }
+
+    if (eval_) {
+        // 解释器模式，不执行api和listen指令
+        return;
     }
 
     // 要监听的端口列表

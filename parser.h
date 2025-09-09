@@ -120,7 +120,7 @@ private:
     void consume();
 
     // 错误处理
-    void error(const std::string& message);
+    void error(const std::string& message) const;
 
     // 校验预期的令牌
     void expect(TokenType type, const std::string& message);
@@ -160,8 +160,18 @@ public:
         consume();  // 获取第一个令牌
     }
 
+    explicit Parser(Lexer& lex, std::ostream& os) : lexer(lex), current_token(UNKNOWN, "", -1, -1) {
+        consume();  // 获取第一个令牌
+    }
+
     // 解析整个程序
     std::unique_ptr<ProgramNode> parse_program();
+};
+
+// 解析时异常
+class ParseError final : public std::runtime_error {
+public:
+    explicit ParseError(const std::string& message) : std::runtime_error(message) {}
 };
 
 #endif // GLUE_PARSER_H
